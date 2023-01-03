@@ -265,6 +265,43 @@ genee() {
 	    -set_serial 2 -days "${DAYS}" "$@"
 }
 
+genee2() {
+    echo "in genee2"
+    local OPTIND=1
+    local purpose=serverAuth
+    local ku=
+
+    while getopts p:k: o
+    do
+        case $o in
+        p) purpose="$OPTARG";;
+        k) ku="keyUsage = $OPTARG";;
+        *) echo "Usage: $0 genee [-k KU] [-p EKU] cn keyname certname cakeyname cacertname" >&2
+           return 1;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
+    local cn=$1; shift
+    local key=$1; shift
+    local cert=$1; shift
+    local cakey=$1; shift
+    local ca=$1; shift
+
+    exts=$(printf "%s\n%s\n%s\n%s\n%s\n[alts]\n%s\n" \
+	    "basicConstraints = CA:false" \
+	    "subjectKeyIdentifier = hash" \
+	    "authorityKeyIdentifier = keyid, issuer:always" \
+            "$ku" \
+	    )
+    csr=$(req "$key" "CN = $cn") || return 1
+    echo "Got CSR"
+    echo "$csr" |
+	cert "$cert" "$exts" -CA "${ca}.pem" -CAkey "${cakey}.key" \
+	    -set_serial 2 -days "${DAYS}" "$@"
+}
+
+
 geneeextra() {
     local OPTIND=1
     local purpose=serverAuth
